@@ -1,0 +1,9 @@
+{
+    "identifier": "cc.foxden/passenger-plus",
+    "version": "0.1",
+    "name": "Passengers Plus",
+    "assemblies": ["PassengerPlus.dll"],
+    "dependencies": {
+        "required": ["rr/game >= 0.6.0"]
+    }
+}

@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netframework4.8</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp" />
+    <Reference Include="Core" />
+    <Reference Include="Railroader" />
+    <Reference Include="Railroader.Modding" />
+    <Reference Include="Serilog" />
+    <Reference Include="UnityEngine.CoreModule" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Krafs.Publicizer" Version="2.3.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Lib.Harmony" Version="2.4.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Publicize Include="Railroader" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Info.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ProjectDir)/cc.foxden.passenger-plus"/>
+    <Copy SourceFiles="$(TargetDir)/Info.json" DestinationFolder="$(ProjectDir)/cc.foxden.passenger-plus"/>
+    <Copy SourceFiles="$(TargetDir)/0Harmony.dll" DestinationFolder="$(ProjectDir)/cc.foxden.passenger-plus"/>
+  </Target>
+</Project>

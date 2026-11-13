@@ -1,0 +1,10 @@
+<Project>
+	<PropertyGroup>
+		<DvInstallDir>/games/SteamLibrary/steamapps/common/Railroader</DvInstallDir>
+		<ReferencePath>
+			$(DvInstallDir)/Railroader_Data/Managed/;
+			$(MSBuildThisFileDirectory)/
+		</ReferencePath>
+		<AssemblySearchPaths>$(AssemblySearchPaths);$(ReferencePath);</AssemblySearchPaths>
+	</PropertyGroup>
+</Project>
