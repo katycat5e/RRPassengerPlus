@@ -403,3 +403,4 @@ FodyWeavers.xsd
 *.targets
 
 cc.foxden.passenger-plus/
+*.zip
