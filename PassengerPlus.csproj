@@ -10,7 +10,9 @@
     <Reference Include="Railroader" />
     <Reference Include="Railroader.Modding" />
     <Reference Include="Serilog" />
+    <Reference Include="UnityEngine"/>
     <Reference Include="UnityEngine.CoreModule" />
+    <Reference Include="UnityEngine.PhysicsModule" />
   </ItemGroup>
 
   <ItemGroup>

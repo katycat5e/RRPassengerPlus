@@ -1,40 +1,44 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Game.MapEditor;
 using HarmonyLib;
 using Model.Ops;
 using Model.Ops.Data;
 using UI.Builder;
+using static Game.MapEditor.OpsInspectorPanel;
 
 namespace PassengerPlus
 {
     [HarmonyPatch(typeof(OpsInspectorPanel))]
     internal static class OpsInspectorPanelPatches
     {
-        [HarmonyPatch(nameof(OpsInspectorPanel.BuildFields))]
+        [HarmonyPatch(nameof(BuildFields))]
         [HarmonyPrefix]
         internal static bool BuildFieldPrefix(UIPanelBuilder builder, MapEditor mapEditor, object dto, Action rebuild, Action refreshOutline, IndustryDTO owningIndustry, DtoInspectorPanel.CustomFieldRenderer extraRenderer)
         {
             DtoInspectorPanel.BuildFields(builder, mapEditor, mapEditor.OpsEditor.SetProperty, dto, OpsInspectorMetadata.Instance, rebuild, refreshOutline,
                 (fieldBuilder, fieldDto, field) =>
                 {
+                    // Original field handlers
                     if (extraRenderer != null && extraRenderer(fieldBuilder, fieldDto, field)) return true;
                     if (field.Kind == DtoFieldKind.LoadReference)
                     {
-                        OpsInspectorPanel.BuildLoadReferenceField(fieldBuilder, mapEditor, fieldDto, field, rebuild, refreshOutline);
+                        BuildLoadReferenceField(fieldBuilder, mapEditor, fieldDto, field, rebuild, refreshOutline);
                         return true;
                     }
                     if (field.Kind == DtoFieldKind.TrackSpanReference && owningIndustry != null)
                     {
-                        OpsInspectorPanel.BuildSpanReferenceField(fieldBuilder, mapEditor, owningIndustry, fieldDto, field, rebuild, refreshOutline);
+                        BuildSpanReferenceField(fieldBuilder, mapEditor, owningIndustry, fieldDto, field, rebuild, refreshOutline);
                         return true;
                     }
+
+                    // Passenger field extensions
                     if (field.Kind == DtoFieldKind.StringArrayReadOnly && field.Property.Name == nameof(PassengerStopDTO.neighbors))
                     {
                         BuildPassengerNeighborsField(fieldBuilder, mapEditor, owningIndustry, dto, field, rebuild, refreshOutline);
                         return true;
                     }
+
                     return false;
                 }
             );
