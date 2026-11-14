@@ -11,7 +11,7 @@ namespace PassengerPlus
         [HarmonyPrefix]
         internal static bool RefreshScopeForWrapper(Type declaringType, string propertyName, ref DtoRefreshScope __result)
         {
-            if (declaringType == typeof(StationAgentDTO) && propertyName == nameof(StationAgentDTO.AreaId))
+            if (declaringType == typeof(StationAgentDTO) && (propertyName == nameof(StationAgentDTO.AreaId) || propertyName == nameof(StationAgentDTO.PassengerStopId)))
             {
                 __result = DtoRefreshScope.Outline | DtoRefreshScope.Inspector;
                 return false;

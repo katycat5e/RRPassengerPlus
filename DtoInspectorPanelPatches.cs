@@ -26,7 +26,7 @@ namespace PassengerPlus
                 {
                     var presentation = Presentation(mapEditor, mutator, dto, item, rebuild, refreshOutline);
                     var areas = GetAllAreaIds(mapEditor);
-                    BuildCustomDropdown(builder, mapEditor, mutator, dto, item, rebuild, refreshOutline, presentation, areas);
+                    BuildCustomDropdown(builder, mapEditor, mutator, dto, item, rebuild, refreshOutline, presentation, areas, OnAreaIdChanged);
                 }
                 else if (isStationAgent && (item.Property.Name == nameof(StationAgentDTO.PassengerStopId)))
                 {
@@ -63,6 +63,20 @@ namespace PassengerPlus
         private static string GetCurrentAreaId(object dto)
         {
             return AgentAreaIdProperty.GetValue(dto) as string;
+        }
+
+        private delegate void StringChangedCallback(MapEditor mapEditor, object dto, string newValue);
+
+        private static void OnAreaIdChanged(MapEditor mapEditor, object dto, string newAreaId)
+        {
+            if (dto is StationAgentDTO agentDTO)
+            {
+                var stopOptions = GetAllPassengerStopIds(mapEditor, newAreaId);
+                if (!stopOptions.Values.Contains(agentDTO.PassengerStopId))
+                {
+                    agentDTO.PassengerStopId = stopOptions.Values.FirstOrDefault();
+                }
+            }
         }
 
         private readonly struct DropdownOptions
@@ -103,7 +117,7 @@ namespace PassengerPlus
 
         private static void BuildCustomDropdown(UIPanelBuilder builder, MapEditor mapEditor, DtoSetProperty mutator,
             object dto, DtoField field, Action rebuild, Action refreshOutline, FieldPresentation presentation,
-            DropdownOptions options)
+            DropdownOptions options, StringChangedCallback extraChangeCallback = null)
         {
             string currentValue = field.Property.GetValue(dto)?.ToString();
             int currentIndex = Mathf.Max(0, options.Values.IndexOf(currentValue));
@@ -113,6 +127,7 @@ namespace PassengerPlus
                 {
                     string newValue = options.Values[newIndex];
                     Commit(mapEditor, mutator, dto, field, newValue, rebuild, refreshOutline);
+                    extraChangeCallback?.Invoke(mapEditor, dto, newValue);
                 });
             }, presentation.Accessory);
         }

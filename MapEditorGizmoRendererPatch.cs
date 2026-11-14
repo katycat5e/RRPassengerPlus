@@ -5,6 +5,7 @@ using Game.MapEditor;
 using HarmonyLib;
 using Helpers;
 using static Game.MapEditor.MapEditorGizmoRenderer;
+using System;
 
 namespace PassengerPlus
 {
@@ -25,7 +26,8 @@ namespace PassengerPlus
             }
         }
 
-        private static readonly float[] CUBE_OFFSETS = { -1, 1 };
+        private static readonly float[] CUBE_OFFSETS = { -0.5f, 0.5f };
+        private static readonly float CUBE_EDGE_LENGTH_2 = Mathf.Pow(CUBE_OFFSETS[1] - CUBE_OFFSETS[0], 2);
 
         private static (Vector3, Vector3)[] _cubeEdges = null;
         private static (Vector3, Vector3)[] CubeEdges
@@ -59,7 +61,7 @@ namespace PassengerPlus
                 foreach (Vector3 end in vertices)
                 {
                     // filter to only pairs that are a single edge apart
-                    if (Vector3.SqrMagnitude(end - start) == 4f)
+                    if (Mathf.Approximately(Vector3.SqrMagnitude(end - start), CUBE_EDGE_LENGTH_2))
                     {
                         yield return (start, end);
                     }
@@ -77,8 +79,8 @@ namespace PassengerPlus
 
             foreach ((Vector3 start, Vector3 end) in CubeEdges)
             {
-                Vector3 worldStart = dto.Position + dto.Rotation * Vector3.Scale(start, dto.Scale).GameToWorld();
-                Vector3 worldEnd = dto.Position + dto.Rotation * Vector3.Scale(end, dto.Scale).GameToWorld();
+                Vector3 worldStart = (dto.Position + dto.Rotation * Vector3.Scale(start, dto.Scale)).GameToWorld();
+                Vector3 worldEnd = (dto.Position + dto.Rotation * Vector3.Scale(end, dto.Scale)).GameToWorld();
 
                 renderer.DrawLine(worldStart, worldEnd, outlineColor);
             }
