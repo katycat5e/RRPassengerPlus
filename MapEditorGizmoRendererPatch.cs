@@ -5,7 +5,6 @@ using Game.MapEditor;
 using HarmonyLib;
 using Helpers;
 using static Game.MapEditor.MapEditorGizmoRenderer;
-using System;
 
 namespace PassengerPlus
 {
