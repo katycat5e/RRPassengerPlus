@@ -1,11 +1,10 @@
 using System.Collections.Generic;
 using System.Linq;
-using UnityEngine;
 using Game.MapEditor;
 using HarmonyLib;
 using Helpers;
+using UnityEngine;
 using static Game.MapEditor.MapEditorGizmoRenderer;
-using System;
 
 namespace PassengerPlus
 {
@@ -14,7 +13,7 @@ namespace PassengerPlus
     {
         [HarmonyPatch(nameof(MapEditorGizmoRenderer.DrawMapObjects))]
         [HarmonyPostfix]
-        internal static void AfterDrawMapObjects(Vector3 cameraPos, MapEditorGizmoRenderer __instance)
+        internal static void AfterDrawMapObjects(MapEditorGizmoRenderer __instance)
         {
             if (__instance.MapObjectSource == null) return;
 
