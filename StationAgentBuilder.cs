@@ -40,9 +40,6 @@ namespace PassengerPlus
 
             PassengerPlusEntry.LogInfo($"[PP] Created station agent {id} with area [{agent.areaId}], stop ID [{agent.passengerStopId}]");
 
-            bool mapEditor = StateManager.Shared.GameSceneMode == GlobalGameManager.GameSceneMode.Editor;
-            PassengerPlusEntry.LogInfo($"[PP] MapEditorController: {mapEditor}");
-
             return true;
         }
 

@@ -1,13 +1,12 @@
 using System;
-using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using Game.MapEditor;
 using HarmonyLib;
-using Model.Ops;
 using Model.Ops.Data;
 using UI.Builder;
-using static Game.MapEditor.MapEditorCreateMenu;
 using static Game.MapEditor.DtoInspectorPanel;
+using static Game.MapEditor.MapEditorCreateMenu;
 using static PassengerPlus.EditorHelpers;
 
 namespace PassengerPlus
@@ -15,13 +14,19 @@ namespace PassengerPlus
     [HarmonyPatch(typeof(MapEditorWindow))]
     internal static class MapEditorWindowPatches
     {
+        static MapEditorWindowPatches()
+        {
+            OpsInspectorMetadata.InspectorScoped.Add((typeof(TimetableBranchDTO), nameof(TimetableBranchDTO.name)));
+            OpsInspectorMetadata.OutlineScoped.Add((typeof(TimetableBranchDTO), nameof(TimetableBranchDTO.name)));
+        }
+
         [HarmonyPatch(nameof(MapEditorWindow.Create))]
         [HarmonyPrefix]
         internal static void CreateWrapper(MapEditor mapEditor, Item item)
         {
             if (item.Kind == EditorConstants.Timetable.ItemKind)
             {
-                CreateTimetable(mapEditor);
+                TimetableConstruction.CreateTimetable(mapEditor);
             }
         }
 
@@ -50,6 +55,20 @@ namespace PassengerPlus
             return true;
         }
 
+        private class TimetablePanelOptions
+        {
+            public string StartId { get; set; }
+            public string EndId { get; set; }
+
+            public static readonly PropertyInfo StartIdProp = AccessTools.Property(typeof(TimetablePanelOptions), nameof(StartId));
+            public static readonly DtoField StartIdField = new DtoField(StartIdProp, "Eastern Terminus", DtoFieldKind.Text, null, DtoRefreshScope.Inspector);
+
+            public static readonly PropertyInfo EndIdProp = AccessTools.Property(typeof(TimetablePanelOptions), nameof(EndId));
+            public static readonly DtoField EndIdField = new DtoField(EndIdProp, "Western Terminus", DtoFieldKind.Text, null, DtoRefreshScope.Inspector);
+        }
+
+        private static readonly TimetablePanelOptions _panelOptions = new TimetablePanelOptions();
+
         internal static void BuildTimetablePanel(UIPanelBuilder builder, MapEditorInspectorContext context)
         {
             var mapEditor = context.MapEditor;
@@ -58,11 +77,31 @@ namespace PassengerPlus
 
             int branchCount = (timetable?.branches is null) ? 0 : timetable.branches.Count;
             builder.AddField("Branches", branchCount.ToString());
+
             builder.HStack(uiPanelBuilder =>
             {
-                uiPanelBuilder.AddButtonCompact("Create Timetable Branch", delegate
+                uiPanelBuilder.AddButtonCompact("Create Empty Timetable Branch", delegate
                 {
-                    CreateTimetableBranch(context.MapEditor);
+                    TimetableConstruction.CreateTimetableBranch(context.MapEditor);
+                    context.Rebuild();
+                });
+            });
+
+            var stopOptions = GetAllPassengerStopIds(mapEditor);
+            var mutator = (DtoSetProperty)mapEditor.OpsEditor.SetProperty;
+
+            if (string.IsNullOrEmpty(_panelOptions.StartId)) _panelOptions.StartId = stopOptions.Values.FirstOrDefault();
+            if (string.IsNullOrEmpty(_panelOptions.EndId)) _panelOptions.EndId = stopOptions.Values.FirstOrDefault();
+
+            BuildCustomDropdown(builder, mutator, _panelOptions, TimetablePanelOptions.StartIdField, context.Rebuild, context.RefreshOutline, stopOptions);
+            BuildCustomDropdown(builder, mutator, _panelOptions, TimetablePanelOptions.EndIdField, context.Rebuild, context.RefreshOutline, stopOptions);
+
+            builder.Spacer();
+            builder.HStack(uiPanelBuilder =>
+            {
+                uiPanelBuilder.AddButtonCompact("Create Timetable Branch From Route", delegate
+                {
+                    TimetableConstruction.CreateTimetableBranch(context.MapEditor, _panelOptions.StartId, _panelOptions.EndId);
                     context.Rebuild();
                 });
             });
@@ -97,13 +136,6 @@ namespace PassengerPlus
             public const string Name = nameof(TimetableStationDTO.name);
             public const string MapFeatureId = nameof(TimetableStationDTO.mapFeatureId);
             public const string TimeToNext = nameof(TimetableStationDTO.traverseTimeToNext);
-
-            private static PropertyInfo For(string name) => AccessTools.Property(typeof(TimetableStationDTO), name);
-
-            public static bool Matches(DtoField field, PropertyInfo property)
-            {
-                return (field.Property.DeclaringType == typeof(TimetableStationProps)) && (field.Property.Name == property.Name);
-            }
         }
 
         internal static void BuildTimetableStationPanel(UIPanelBuilder builder, MapEditorInspectorContext context, DtoSetProperty mutator, TimetableStationDTO station, DtoField field)
@@ -123,9 +155,6 @@ namespace PassengerPlus
                     break;
 
                 case TimetableStationProps.Name:
-                    builder.AddLabel($"{field.Label}: {station.name}");
-                    break;
-
                 case TimetableStationProps.MapFeatureId:
                 case TimetableStationProps.TimeToNext:
                     BuildField(builder, context.MapEditor, mutator, station, field, metadata, context.Rebuild, context.RefreshOutline, null);
@@ -154,59 +183,26 @@ namespace PassengerPlus
             var newStop = GetStopById(mapEditor, newValue);
 
             station.code = newStop.timetableCode;
-            station.name = newStop.name;
+            station.name = GetShortStopName(newStop.name);
         }
 
-
-        //===================================================================================================
-        #region Ops Management
-
-        private static void CreateTimetable(MapEditor mapEditor)
+        private static readonly string[] _toTrimFromStopName =
         {
-            if (mapEditor.OpsEditor.Ops.timetable != null) return;
+            "station", "depot", "flag stop",
+        };
 
-            var mapDTO = new TimetableMapDTO();
-            mapEditor.PerformUndoable("Create Timetable", () =>
-            {
-                OpsAddTimetable(mapEditor.OpsEditor, mapDTO);
-            });
-            mapEditor.NotifyItemCreated();
-        }
-
-        private static void OpsAddTimetable(OpsEditor opsEditor, TimetableMapDTO mapDTO)
+        private static string GetShortStopName(string fullName)
         {
-            opsEditor.Ops.timetable = mapDTO;
-            opsEditor.UndoManager.RegisterUndo(() =>
+            foreach (string trimmable in _toTrimFromStopName)
             {
-                opsEditor.Ops.timetable = null;
-            }, "Add Timetable");
-            opsEditor.NotifyChange();
+                int start;
+                while ((start = fullName.IndexOf(trimmable, StringComparison.OrdinalIgnoreCase)) >= 0)
+                {
+                    fullName = fullName.Remove(start, trimmable.Length);
+                }
+            }
+
+            return fullName;
         }
-
-        private static void CreateTimetableBranch(MapEditor mapEditor)
-        {
-            if (mapEditor.OpsEditor.Ops.timetable is null) return;
-
-            var branchDTO = new TimetableBranchDTO();
-            mapEditor.PerformUndoable("Create Timetable Branch", () =>
-            {
-                OpsAddTimetableBranch(mapEditor.OpsEditor, branchDTO);
-            });
-        }
-
-        private static void OpsAddTimetableBranch(OpsEditor opsEditor, TimetableBranchDTO branchDTO)
-        {
-            var timetable = opsEditor.Ops.timetable;
-            if (timetable.branches is null) timetable.branches = new List<TimetableBranchDTO>();
-
-            timetable.branches.Add(branchDTO);
-            opsEditor.UndoManager.RegisterUndo(() =>
-            {
-                timetable.branches?.Remove(branchDTO);
-            }, "Add Timetable Branch");
-            opsEditor.NotifyChange();
-        }
-
-        #endregion
     }
 }

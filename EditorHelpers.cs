@@ -51,6 +51,23 @@ namespace PassengerPlus
             return new DropdownOptions(names, values);
         }
 
+        public static IEnumerable<PassengerStopDTO> GetAllPassengerStops(MapEditor mapEditor)
+        {
+            foreach (var area in mapEditor.OpsEditor.Ops.areas)
+            {
+                foreach (var industry in area.Value.industries)
+                {
+                    foreach (var component in industry.Value.components)
+                    {
+                        if (component.Value is PassengerStopDTO stop)
+                        {
+                            yield return stop;
+                        }
+                    }
+                }
+            }
+        }
+
         public static PassengerStopDTO GetStopById(MapEditor mapEditor, string stopId)
         {
             foreach (var area in mapEditor.OpsEditor.Ops.areas)
@@ -86,6 +103,33 @@ namespace PassengerPlus
                     extraChangeCallback?.Invoke(mapEditor, dto, newValue);
                 });
             }, presentation.Accessory);
+        }
+
+        public static void BuildCustomDropdown(UIPanelBuilder builder, DtoSetProperty mutator,
+            object dto, DtoField field, Action rebuild, Action refreshOutline, DropdownOptions options)
+        {
+            string currentValue = field.Property.GetValue(dto)?.ToString();
+            int currentIndex = Mathf.Max(0, options.Values.IndexOf(currentValue));
+            AddStackedField(builder, field.Label, null, row =>
+            {
+                row.AddDropdown(options.Names, currentIndex, newIndex =>
+                {
+                    string newValue = options.Values[newIndex];
+                    mutator(() => field.Property.GetValue(dto), delegate (object value)
+                    {
+                        field.Property.SetValue(dto, value);
+                    }, newValue, "Set " + field.Label);
+
+                    if (field.RefreshScope.HasFlag(DtoRefreshScope.Inspector))
+                    {
+                        rebuild();
+                    }
+                    else if (field.RefreshScope.HasFlag(DtoRefreshScope.Outline))
+                    {
+                        refreshOutline?.Invoke();
+                    }
+                });
+            });
         }
     }
 
